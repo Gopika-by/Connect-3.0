@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Connect - Notes Sharing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    body { font-family:'Inter',sans-serif; margin:0; background:#f8fbfd; color:#333; }
+    header { background:#03045e; color:#fff; padding:20px 40px; font-size:1.5rem; display:flex; justify-content:space-between; }
+    header .profile { background:#caf0f8; padding:10px; border-radius:50%; cursor:pointer; }
+    .container { max-width:1200px; margin:40px auto; display:flex; gap:40px; flex-wrap:wrap; }
+    .card { flex:1 1 45%; background:#fff; padding:30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); }
+    .card h3 { margin-top:0; color:#0077b6; }
+    .drop-zone {
+      border:2px dashed #0077b6; border-radius:6px;
+      padding:2rem; text-align:center; color:#03045e; cursor:pointer;
+      transition:background .2s; margin:10px 0;
+    }
+    .drop-zone.dragover { background:#e0f7fa; }
+    .card select, .card button {
+      width:100%; padding:10px; margin:10px 0; font-size:1rem; border-radius:6px;
+    }
+    .card select { border:1px solid #ccc; }
+    .card button { background:#0077b6; color:#fff; border:none; cursor:pointer; }
+    #selectedFileName { font-size:.9rem; color:#555; min-height:1.2em; margin-bottom:10px; }
+    .notes-list {
+      max-height:400px; overflow-y:auto; background:#caf0f8;
+      border:1px solid #00b4d8; border-radius:8px; padding:20px;
+    }
+    .note-item {
+      display:flex; justify-content:space-between; align-items:center;
+      background:#fff; padding:15px; border-radius:6px; margin-bottom:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.1);
+    }
+    .note-item a { color:#0077b6; text-decoration:none; flex:1; }
+    .note-item button { background:transparent; border:none; color:#d62828; font-size:1.2rem; cursor:pointer; }
+    #uploadStatus { font-size:.9rem; color:#0077b6; min-height:1.2em; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <header>
+    Connect - Notes Sharing
+    <div class="profile">👤</div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h3>Share a Note</h3>
+
+      <select id="roomSelect">
+        <option value="">— Pick a Room —</option>
+      </select>
+
+      <div id="dropZone" class="drop-zone">
+        Drag &amp; Drop PDF here<br/>or click to select
+      </div>
+      <input type="file" id="notesFile" accept="application/pdf" class="hidden"/>
+      <div id="selectedFileName"></div>
+
+      <button id="btnShare">Share to Room</button>
+      <div id="uploadStatus"></div>
+    </div>
+
+    <div class="card">
+      <h3>Notes Shared in This Room</h3>
+      <div class="notes-list" id="notesList"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence
+    } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    import {
+      getDatabase, ref, onValue
+    } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCUJsYSzB3j-BYY_EVztxjSOFngx6cgmGQ",
+      authDomain: "intern-project-db660.firebaseapp.com",
+      databaseURL: "https://intern-project-db660-default-rtdb.firebaseio.com/",
+      projectId: "intern-project-db660"
+    };
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getDatabase(app);
+    await setPersistence(auth, browserLocalPersistence);
+
+    const roomSelect      = document.getElementById('roomSelect');
+    const dropZone        = document.getElementById('dropZone');
+    const notesFile       = document.getElementById('notesFile');
+    const selectedNameDiv = document.getElementById('selectedFileName');
+    const btnShare        = document.getElementById('btnShare');
+    const uploadStatus    = document.getElementById('uploadStatus');
+    const notesList       = document.getElementById('notesList');
+
+    let uid, ownerUid;
+
+    onAuthStateChanged(auth, user => {
+      if (!user) return location.href = '/login';
+      uid = user.uid;
+      onValue(ref(db, 'rooms'), snap => {
+        roomSelect.innerHTML = '<option value="">— Pick a Room —</option>';
+        Object.entries(snap.val() || {}).forEach(([rid, r]) => {
+          if (r.ownerUid === uid || r.members?.[uid]) {
+            const o = document.createElement('option');
+            o.value = rid; o.textContent = rid;
+            roomSelect.append(o);
+          }
+        });
+      });
+    });
+
+    notesFile.addEventListener('change', () => {
+      const f = notesFile.files[0];
+      selectedNameDiv.textContent = f ? `Selected: ${f.name}` : '';
+    });
+
+    ['dragover','dragleave','drop'].forEach(evt => {
+      dropZone.addEventListener(evt, e => {
+        e.preventDefault();
+        dropZone.classList.toggle('dragover', evt === 'dragover');
+        if (evt === 'drop') {
+          notesFile.files = e.dataTransfer.files;
+          const f = notesFile.files[0];
+          selectedNameDiv.textContent = f ? `Selected: ${f.name}` : '';
+        }
+      });
+    });
+    dropZone.addEventListener('click', () => notesFile.click());
+
+    roomSelect.onchange = () => {
+      const room = roomSelect.value;
+      uploadStatus.textContent = '';
+      selectedNameDiv.textContent = '';
+      notesFile.value = '';
+      notesList.innerHTML = '';
+      if (!room) return;
+      onValue(ref(db, `rooms/${room}`), s => ownerUid = s.val().ownerUid, { onlyOnce: true });
+      loadPeerNotes(room);
+    };
+
+    btnShare.addEventListener('click', async () => {
+      const room = roomSelect.value;
+      const file = notesFile.files[0];
+      if (!room || !file) {
+        uploadStatus.textContent = 'Select a room & PDF first';
+        return;
+      }
+      uploadStatus.textContent = 'Uploading…';
+      btnShare.disabled = true;
+      try {
+        const fd = new FormData();
+        fd.append('room_code', room);
+        fd.append('note', file);
+        const res = await fetch('/upload_peer_note', { method:'POST', body:fd });
+        if (!res.ok) throw new Error();
+        uploadStatus.textContent = 'Uploaded successfully!';
+        selectedNameDiv.textContent = '';
+        notesFile.value = '';
+        loadPeerNotes(room);
+      } catch {
+        uploadStatus.textContent = 'Upload failed. Try again.';
+      } finally {
+        btnShare.disabled = false;
+      }
+    });
+
+    async function loadPeerNotes(room) {
+      notesList.textContent = 'Loading…';
+      const res = await fetch(`/list_peer_notes?room_code=${encodeURIComponent(room)}`);
+      if (!res.ok) { notesList.textContent = 'Failed to load.'; return; }
+      const arr = await res.json();
+      notesList.innerHTML = '';
+      arr.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'note-item';
+
+        const a = document.createElement('a');
+        a.href = item.url;
+        a.textContent = item.name;
+        a.download = item.name;
+
+        let delBtn = null;
+        if (item.uploaderUid === uid || ownerUid === uid) {
+          delBtn = document.createElement('button');
+          delBtn.textContent = '×';
+          delBtn.onclick = async () => {
+            const roomEnc = encodeURIComponent(room);
+            const keyEnc  = encodeURIComponent(item.key);
+            const dr = await fetch(
+              `/delete_peer_note/${roomEnc}/${keyEnc}`,
+              { method:'DELETE' }
+            );
+            if (dr.ok) {
+              loadPeerNotes(room);
+            } else {
+              alert(`Delete failed (${dr.status})`);
+            }
+          };
+        }
+
+        div.append(a, delBtn);
+
+        const info = document.createElement('div');
+        info.style.fontSize = '0.85rem';
+        info.style.color = '#555';
+        info.textContent = `shared by ${item.uploader}`;
+        div.append(info);
+
+        notesList.append(div);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect - Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+    }
+    .login-container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+    .login-left {
+      flex: 1;
+      background: linear-gradient(135deg, #03045e, #0077b6);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center; /* center the form/buttons */
+      padding: 60px;
+    }
+    .logo-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .logo-box img {
+      width: 60px;
+      height: 60px;
+    }
+    .logo-box span {
+      font-size: 28px;
+      font-weight: bold;
+    }
+    .login-left h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+    .login-left p {
+      font-size: 16px;
+      margin-bottom: 30px;
+    }
+    /* constrain the form and center its children */
+    form {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 300px;
+    }
+    form input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: none;
+      border-radius: 5px;
+      font-size: 15px;
+    }
+    /* both buttons (traditional & Google) */
+    .btn-primary {
+      display: block;
+      width: 100%;
+      max-width: 300px;
+      box-sizing: border-box;
+      padding: 12px;
+      border: none;
+      border-radius: 5px;
+      background-color: #90e0ef;
+      color: #03045e;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s ease;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .btn-primary:hover {
+      background-color: #00b4d8;
+      color: #fff;
+      transform: scale(1.05);
+    }
+    .google-btn {
+      background: #fff;
+      color: #03045e;
+      border: 2px solid #90e0ef;
+    }
+    .google-btn:hover {
+      background: #90e0ef;
+      color: #03045e;
+    }
+    .register-link {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .register-link a {
+      color: #caf0f8;
+      text-decoration: underline;
+    }
+    .login-right {
+      flex: 1;
+      background-color: #caf0f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .login-right img {
+      width: 85%;
+      max-height: 85%;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <!-- Left Panel -->
+    <div class="login-left">
+      <div class="logo-box">
+        <img src="images/logo.png" alt="Connect Logo">
+        <span>CONNECT</span>
+      </div>
+      <h1>Welcome Back</h1>
+      <p>To keep connected with us, please login with your personal info</p>
+
+      <!-- Traditional login -->
+      <form action="/login" method="POST">
+        <input type="text" name="username" placeholder="Username" required />
+        <input type="password" name="password" placeholder="Password" required />
+        <button type="submit" class="btn-primary">SIGN IN</button>
+      </form>
+
+      <!-- Firebase Google Sign-In -->
+      <button id="googleSignIn" class="btn-primary google-btn">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
+             alt="Google logo" style="height:20px; vertical-align:middle; margin-right:8px;">
+        Sign in with Google
+      </button>
+
+      <p class="register-link">New user? <a href="#">Register</a></p>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="login-right">
+      <img src="images/photo.png.png" alt="Study Illustration">
+    </div>
+  </div>
+
+  <!-- Firebase SDK + signInWithPopup logic -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+    import {
+      getAuth,
+      signInWithPopup,
+      GoogleAuthProvider
+    } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
+
+    // TODO: replace with your real config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCUJsYSzB3j-BYY_EVztxjSOFngx6cgmGQ",
+      authDomain: "intern-project-db660.firebaseapp.com",
+      projectId: "intern-project-db660",
+      storageBucket: "intern-project-db660.firebasestorage.app",
+      messagingSenderId: "123306792723",
+      appId: "1:123306792723:web:8c0d4f05891de36d85ece6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    document.getElementById('googleSignIn')
+      .addEventListener('click', async () => {
+        try {
+          const result = await signInWithPopup(auth, provider);
+          const idToken = await result.user.getIdToken();
+          // Send the ID token to your backend for verification & session creation
+          const res = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken })
+          });
+          if (res.ok) {
+            window.location.href = '/dashboard';
+          } else {
+            const text = await res.text();
+            alert('Login failed: ' + text);
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Google sign-in failed');
+        }
+      });
+  </script>
+</body>
+</html>

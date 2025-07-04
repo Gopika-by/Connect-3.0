@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Peer Interaction</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --primary: #0077b6;
+      --primary-dark: #03045e;
+      --bg: #f0f8ff;
+      --card-bg: #fff;
+      --text: #333;
+      --shadow: rgba(0,0,0,0.05);
+      --gap: 24px;
+      --link-bg: #eee;
+      --link-color: #666;
+      --name-color: #d6336c;
+    }
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body {
+      font-family:'Inter',sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100vh;
+      display:flex; flex-direction:column;
+    }
+    header {
+      background:var(--primary);
+      color:#fff;
+      padding:16px 32px;
+      font-size:1.25rem;
+      font-weight:600;
+    }
+    main {
+      flex:1;
+      display:grid;
+      grid-template-columns:300px 1fr;
+      gap:var(--gap);
+      padding:var(--gap);
+    }
+    .sidebar {
+      display:flex; flex-direction:column; gap:var(--gap);
+    }
+    .panel, .card {
+      background:var(--card-bg);
+      border-radius:8px;
+      box-shadow:0 4px 12px var(--shadow);
+      padding:16px;
+    }
+    .panel h3, .card h3 {
+      margin-bottom:12px;
+      font-weight:600;
+      color:var(--primary-dark);
+    }
+    #availableRooms ul {
+      list-style:none;
+      max-height:300px;
+      overflow-y:auto;
+      padding:0;
+    }
+    #availableRooms li {
+      padding:8px 0;
+      border-bottom:1px solid #eee;
+      font-size:0.95rem;
+    }
+    #chatSection {
+      display:flex; flex-direction:column; height:100%;
+    }
+    #chatLog {
+      flex:1;
+      overflow-y:auto;
+      overflow-x:hidden;
+      border:1px solid #ccc;
+      border-radius:4px;
+      background:#fafafa;
+      padding:8px;
+      margin-bottom:8px;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    #chatSection select,
+    #chatSection input {
+      width:100%;
+      padding:8px;
+      margin-bottom:12px;
+      border:1px solid #ccc;
+      border-radius:4px;
+    }
+
+    /* 2×2 grid for the four main cards */
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: var(--gap);
+      justify-content: center;
+      align-content: start;
+      padding: var(--gap);
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .card {
+      width: 420px;
+      height: 300px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 32px;
+    }
+    .card select,
+    .card input {
+      width:100%;
+      padding:8px;
+      margin-bottom:12px;
+      border:1px solid #ccc;
+      border-radius:4px;
+    }
+    .card button {
+      background:var(--primary);
+      color:#fff;
+      border:none;
+      padding:10px;
+      border-radius:4px;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .card button:hover {
+      background:var(--primary-dark);
+    }
+    /* Invite UI – full width */
+    #inviteMemberCard {
+      display:none;
+      grid-column: span 2;
+      height: auto;
+    }
+    #callLinkInput {
+      width:100%;
+      padding:8px;
+      margin-bottom:12px;
+      border:1px solid #ccc;
+      border-radius:4px;
+      background:var(--link-bg);
+      color:var(--link-color);
+    }
+    /* Chat message styling */
+    .chat-message { margin-bottom:8px; }
+    .chat-user {
+      font-size:0.85em;
+      font-weight:bold;
+      color:var(--primary-dark);
+      display:block;
+    }
+    .chat-text {
+      display:block;
+      font-size:1em;
+      color:var(--text);
+      margin-left:1em;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+    /* owner name in available rooms */
+    .owner-name {
+      font-weight:bold;
+      color:var(--name-color);
+    }
+  </style>
+</head>
+
+<body>
+  <header>CONNECT – Peer Interaction</header>
+
+  <main>
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div id="availableRooms" class="panel">
+        <h3>Available Rooms</h3>
+        <ul id="roomList"></ul>
+      </div>
+      <div id="chatSection" class="panel">
+        <h3>Chat</h3>
+        <select id="chatRoomSelect">
+          <option value="">-- select room --</option>
+        </select>
+        <div id="chatLog"></div>
+        <input id="chatInput" placeholder="Type a message…" />
+      </div>
+    </div>
+
+    <!-- Four main controls laid out 2×2 -->
+    <section class="controls">
+      <div class="card">
+        <h3>Create Room</h3>
+        <input id="newRoomCode" placeholder="Room Code" />
+        <button id="btnCreate">Create</button>
+      </div>
+
+      <div class="card">
+        <h3>Delete Room</h3>
+        <select id="deleteRoomSelect">
+          <option value="">-- your rooms --</option>
+        </select>
+        <button id="btnDelete">Delete</button>
+      </div>
+
+      <div class="card">
+        <h3>Start Video Call</h3>
+        <select id="videoRoomSelect">
+          <option value="">-- joined rooms --</option>
+        </select>
+        <button id="btnCall">Start Call</button>
+      </div>
+
+      <div class="card">
+        <h3>Join / Leave Room</h3>
+        <select id="joinRoomSelect">
+          <option value="">-- select room --</option>
+        </select>
+        <button id="btnJoinLeave" disabled>Join</button>
+      </div>
+
+      <!-- Invite Member appears full-width below -->
+      <div class="card" id="inviteMemberCard">
+        <h3>Invite Member</h3>
+        <input type="text" id="callLinkInput" disabled placeholder="Call link will appear here…" />
+        <button id="copyInviteLink">Copy Link</button>
+        <input type="email" id="inviteEmailBox" placeholder="Enter email address" />
+        <button id="sendInviteEmail">Send via Email</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+    import {
+      getAuth, onAuthStateChanged,
+      setPersistence, browserLocalPersistence
+    } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
+    import {
+      getDatabase, ref, onValue, set,
+      update, remove, push
+    } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
+
+    // —— Firebase config —— 
+    const firebaseConfig = {
+      apiKey: "AIzaSyCUJsYSzB3j-BYY_EVztxjSOFngx6cgmGQ",
+      authDomain: "intern-project-db660.firebaseapp.com",
+      databaseURL: "https://intern-project-db660-default-rtdb.firebaseio.com/",
+      projectId: "intern-project-db660"
+    };
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getDatabase(app);
+    await setPersistence(auth, browserLocalPersistence);
+
+    let allRooms = {};
+    const roomList        = document.getElementById('roomList');
+    const deleteSel       = document.getElementById('deleteRoomSelect');
+    const videoSel        = document.getElementById('videoRoomSelect');
+    const chatSel         = document.getElementById('chatRoomSelect');
+    const joinSel         = document.getElementById('joinRoomSelect');
+    const btnCreate       = document.getElementById('btnCreate');
+    const btnDelete       = document.getElementById('btnDelete');
+    const btnCall         = document.getElementById('btnCall');
+    const btnJoinLeave    = document.getElementById('btnJoinLeave');
+    const chatLog         = document.getElementById('chatLog');
+    const chatInput       = document.getElementById('chatInput');
+    const inviteCard      = document.getElementById('inviteMemberCard');
+    const callLinkInput   = document.getElementById('callLinkInput');
+    const copyInviteLink  = document.getElementById('copyInviteLink');
+    const inviteEmailBox  = document.getElementById('inviteEmailBox');
+    const sendInviteEmail = document.getElementById('sendInviteEmail');
+
+    onAuthStateChanged(auth, user => {
+      if (user) subscribeRooms();
+      else roomList.innerHTML = '<li>Please <a href="/login">log in</a></li>';
+    });
+
+    function subscribeRooms() {
+      onValue(ref(db, 'rooms'), snap => {
+        allRooms = snap.val() || {};
+        renderAvailable();
+        populateDropdowns();
+      });
+    }
+
+    function renderAvailable() {
+      roomList.innerHTML = '';
+      Object.entries(allRooms).forEach(([code, info]) => {
+        const ownerEmail = info.ownerEmail || '—';
+        const ownerName  = info.ownerName  || '';
+        const count      = info.members ? Object.keys(info.members).length : 0;
+        const li = document.createElement('li');
+        li.innerHTML = `
+          ${code} — Owner: ${ownerEmail}
+          <span class="owner-name">(${ownerName})</span>
+          — Members: ${count}
+        `;
+        roomList.appendChild(li);
+      });
+    }
+
+    function populateDropdowns() {
+      const uid    = auth.currentUser.uid;
+      const displayName = auth.currentUser.displayName || auth.currentUser.email;
+      const owned = [], joined = [], all = [];
+      Object.entries(allRooms).forEach(([code, info]) => {
+        all.push(code);
+        if (info.ownerUid === uid) owned.push(code);
+        if (info.members?.[uid]) joined.push(code);
+      });
+      fill(deleteSel, owned, '-- your rooms --');
+      fill(videoSel, joined, '-- joined rooms --');
+      fill(joinSel,  all,    '-- select room --');
+      fill(chatSel,  all,    '-- select room --');
+      updateJoinButton();
+    }
+
+    function fill(sel, arr, placeholder) {
+      sel.innerHTML = `<option value="">${placeholder}</option>`;
+      arr.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.textContent = c;
+        sel.appendChild(o);
+      });
+    }
+
+    // Create Room
+    btnCreate.onclick = async () => {
+      const code = document.getElementById('newRoomCode').value.trim();
+      if (!code) return alert('Enter a room code');
+      if (allRooms[code]) return alert('Room exists');
+
+      const uid  = auth.currentUser.uid;
+      const name = auth.currentUser.displayName || auth.currentUser.email;
+
+      await set(ref(db, `rooms/${code}`), {
+        ownerUid:   uid,
+        ownerEmail: auth.currentUser.email,
+        ownerName:  name,
+        members: { [uid]: { name } }
+      });
+      alert('Created');
+    };
+
+    // Delete Room
+    btnDelete.onclick = async () => {
+      const code = deleteSel.value;
+      if (!code) return alert('Select your room');
+      if (allRooms[code].ownerUid !== auth.currentUser.uid)
+        return alert('Not owner');
+      await remove(ref(db, `rooms/${code}`));
+      alert('Deleted');
+    };
+
+    // Join / Leave Room
+    joinSel.onchange = updateJoinButton;
+    function updateJoinButton() {
+      const code = joinSel.value;
+      const uid  = auth.currentUser.uid;
+      if (!code) {
+        btnJoinLeave.disabled = true;
+        btnJoinLeave.textContent = 'Join';
+        return;
+      }
+      const info = allRooms[code];
+      if (info.ownerUid === uid) {
+        btnJoinLeave.disabled = true;
+        btnJoinLeave.textContent = 'Owner';
+      } else if (info.members?.[uid]) {
+        btnJoinLeave.disabled = false;
+        btnJoinLeave.textContent = 'Leave';
+      } else {
+        btnJoinLeave.disabled = false;
+        btnJoinLeave.textContent = 'Join';
+      }
+    }
+    btnJoinLeave.onclick = async () => {
+      const code = joinSel.value;
+      const uid  = auth.currentUser.uid;
+      const name = auth.currentUser.displayName || auth.currentUser.email;
+      if (!code) return alert('Select a room');
+      const info = allRooms[code];
+
+      if (info.ownerUid === uid) {
+        return alert('Room owners cannot leave; delete instead.');
+      }
+      if (info.members?.[uid]) {
+        // leave
+        await remove(ref(db, `rooms/${code}/members/${uid}`));
+        alert('You have left the room');
+      } else {
+        // join
+        await update(ref(db, `rooms/${code}/members/${uid}`), { name });
+        alert('You have joined the room');
+      }
+    };
+
+    // Start Video Call
+    btnCall.onclick = () => {
+      const code = videoSel.value;
+      if (!code) return alert('Select a joined room');
+      const link = `${location.origin}/video-call?room=${code}`;
+      window.open(link, 'VideoCall','width=800,height=600');
+      callLinkInput.value = link;
+      inviteCard.style.display = 'block';
+    };
+
+    // Copy invite link
+    copyInviteLink.onclick = () => {
+      callLinkInput.select();
+      document.execCommand('copy');
+      alert('Link copied');
+    };
+
+    // Send invite email
+    sendInviteEmail.onclick = async () => {
+      const email = inviteEmailBox.value.trim();
+      const room  = videoSel.value;
+      if (!email) return alert('Enter an email');
+      const res = await fetch('/api/invite-member', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ room_code:room, email })
+      });
+      if (res.ok) alert('Email sent');
+      else alert('Failed to send');
+    };
+
+    // Chat
+    chatSel.onchange = () => {
+      chatLog.innerHTML = '';
+      const room = chatSel.value;
+      if (!room) return;
+      onValue(ref(db, `rooms/${room}/chat`), snap => {
+        chatLog.innerHTML = '';
+        Object.values(snap.val() || {}).forEach(({ userName, text }) => {
+          const msg = document.createElement('div');
+          msg.className = 'chat-message';
+
+          const u = document.createElement('span');
+          u.className = 'chat-user';
+          u.textContent = userName;
+
+          const t = document.createElement('span');
+          t.className = 'chat-text';
+          t.textContent = text;
+
+          msg.appendChild(u);
+          msg.appendChild(t);
+          chatLog.appendChild(msg);
+        });
+      });
+    };
+    chatInput.onkeydown = async e => {
+      if (e.key !== 'Enter') return;
+      const room = chatSel.value;
+      const txt  = chatInput.value.trim();
+      if (!room || !txt) return;
+      const userName = auth.currentUser.displayName || auth.currentUser.email;
+      await push(ref(db, `rooms/${room}/chat`), {
+        userName,
+        text: txt
+      });
+      chatInput.value = '';
+    };
+  </script>
+</body>
+</html>

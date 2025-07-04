@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Call — {{ room_code }}</title>
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; display: flex; flex-direction: column; }
+    #controls {
+      background: #03045e;
+      padding: 12px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+    #controls button {
+      background: #0077b6;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    #controls button:hover {
+      background: #005f86;
+    }
+    #videos {
+      flex: 1;
+      display: flex;
+      background: black;
+    }
+    video {
+      flex: 1;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <!-- Control buttons -->
+  <div id="controls">
+    <button id="muteBtn">Mute</button>
+    <button id="videoBtn">Stop Video</button>
+    <button id="hangupBtn">Hang Up</button>
+  </div>
+
+  <!-- Video streams -->
+  <div id="videos">
+    <video id="local" autoplay muted></video>
+    <video id="remote" autoplay></video>
+  </div>
+
+  <script type="module">
+    // Jinja-provided room code
+    const room = '{{ room_code }}';
+    if (!room) {
+      alert('Room code missing.');
+      window.close();
+    }
+
+    // Firebase config
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+    import { getDatabase, ref, onChildAdded, push } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID"
+    };
+    const app  = initializeApp(firebaseConfig);
+    const db   = getDatabase(app);
+
+    // Elements
+    const localVid = document.getElementById('local');
+    const remoteVid = document.getElementById('remote');
+    const muteBtn = document.getElementById('muteBtn');
+    const videoBtn = document.getElementById('videoBtn');
+    const hangupBtn = document.getElementById('hangupBtn');
+
+    let pc, localStream;
+
+    (async () => {
+      // get local media
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localVid.srcObject = localStream;
+
+      // set up RTCPeerConnection
+      pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      // signaling ref
+      const sigRef = ref(db, `rooms/${room}/webrtc`);
+
+      // ICE candidates
+      pc.onicecandidate = e => {
+        if (e.candidate) {
+          push(sigRef, { candidate: e.candidate.toJSON() });
+        }
+      };
+
+      // remote stream
+      pc.ontrack = e => {
+        remoteVid.srcObject = e.streams[0];
+      };
+
+      // listen for offers/answers/candidates
+      onChildAdded(sigRef, async snap => {
+        const data = snap.val();
+        if (data.sdp) {
+          const desc = new RTCSessionDescription(data.sdp);
+          if (desc.type === 'offer') {
+            await pc.setRemoteDescription(desc);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            push(sigRef, { sdp: pc.localDescription.toJSON() });
+          } else if (desc.type === 'answer') {
+            await pc.setRemoteDescription(desc);
+          }
+        }
+        if (data.candidate) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(data.candidate)); } catch {}
+        }
+      });
+
+      // create offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      push(sigRef, { sdp: pc.localDescription.toJSON() });
+    })();
+
+    // Controls
+    muteBtn.onclick = () => {
+      localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
+      muteBtn.textContent = localStream.getAudioTracks()[0].enabled ? 'Mute' : 'Unmute';
+    };
+
+    videoBtn.onclick = () => {
+      localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
+      videoBtn.textContent = localStream.getVideoTracks()[0].enabled ? 'Stop Video' : 'Start Video';
+    };
+
+    hangupBtn.onclick = () => {
+      pc.close();
+      window.close();
+    };
+  </script>
+</body>
+</html>

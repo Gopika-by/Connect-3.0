@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect – Dashboard</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --primary: #0077b6;
+      --primary-dark: #03045e;
+      --bg: #f0f8ff;
+      --card-bg: #ffffff;
+      --text: #03045e;
+      --shadow: rgba(0, 0, 0, 0.1);
+      --transition: 0.3s ease;
+      --card-padding: 48px;
+      --card-gap: 48px;
+      --max-width: 900px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+      padding: 16px 32px;
+      color: #fff;
+    }
+    .logo { font-size: 1.5rem; font-weight: 700; letter-spacing: 1px; }
+    .profile {
+      display: flex; align-items: center;
+    }
+    .profile a {
+      margin-right: 12px; color: #fff; text-decoration: none;
+      font-size: 0.9rem; font-weight: 500;
+    }
+    /* default placeholder, will be replaced */
+    .profile img {
+      width: 42px; height: 42px;
+      border-radius: 50%; object-fit: cover;
+      border: 2px solid #fff; cursor: pointer;
+      transition: transform var(--transition);
+    }
+    .profile img:hover { transform: scale(1.05); }
+
+    main.dashboard {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--card-gap);
+      width: 90%;
+      max-width: var(--max-width);
+      margin: 80px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px var(--shadow);
+      padding: var(--card-padding);
+      text-align: center;
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 8px 24px var(--shadow);
+    }
+    .card-icon { font-size: 3rem; }
+    .card h3 {
+      margin-top: 16px;
+      font-size: 1.2rem;
+      font-weight: 500;
+    }
+
+    @media (max-width: 800px) {
+      main.dashboard {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">CONNECT</div>
+    <div class="profile">
+      <a href="#">Edit Profile</a>
+      <!-- give it an ID and a dummy placeholder -->
+      <img
+        id="profileImg"
+        src="/images/default-profile.png"
+        alt="Profile"
+        onerror="this.onerror=null; this.src='/images/default-profile.png';"
+      />
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <div class="card" onclick="location.href='/peer-interaction'">
+      <div class="card-icon">🤝</div>
+      <h3>Peer Interaction</h3>
+    </div>
+
+    <div class="card" onclick="location.href='/daily-updates'">
+      <div class="card-icon">📝</div>
+      <h3>Daily Updates</h3>
+    </div>
+
+    <div class="card" onclick="location.href='/notes-sharing'">
+      <div class="card-icon">📖</div>
+      <h3>Notes Sharing</h3>
+    </div>
+
+    <div class="card" onclick="location.href='/leaderboard'">
+      <div class="card-icon">🏆</div>
+      <h3>Leaderboard</h3>
+    </div>
+  </main>
+
+  <!-- Firebase client to swap in photoURL -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
+    import {
+      getAuth,
+      onAuthStateChanged
+    } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
+
+    // — your same Firebase config from login.html —
+    const firebaseConfig = {
+  apiKey: "AIzaSyCUJsYSzB3j-BYY_EVztxjSOFngx6cgmGQ",
+  authDomain: "intern-project-db660.firebaseapp.com",
+  projectId: "intern-project-db660",
+  storageBucket: "intern-project-db660.firebasestorage.app",
+  messagingSenderId: "123306792723",
+  appId: "1:123306792723:web:8c0d4f05891de36d85ece6"
+};
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, user => {
+      if (user && user.photoURL) {
+        document.getElementById('profileImg').src = user.photoURL;
+      }
+    });
+  </script>
+</body>
+</html>
