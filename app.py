@@ -217,8 +217,8 @@ def api_invite_member():
     link = url_for('accept_invite', room=room, email=email, _external=True)
     SMTP_SERVER = "smtp.gmail.com"
     SMTP_PORT   = 587
-    SMTP_USER   = "your-app@gmail.com"
-    SMTP_PASS   = "your_app_password"
+    SMTP_USER   = "aryasubramani.s@gmail.com"
+    SMTP_PASS   = "nsclvvtcqqlmkbon"
     msg = MIMEText(f"Join my Connect room {room}:\n\n{link}")
     msg['Subject'] = f"Invitation to room {room}"
     msg['From']    = SMTP_USER
@@ -298,8 +298,8 @@ def api_email_quiz_text():
 
     SMTP_SERVER = "smtp.gmail.com"
     SMTP_PORT   = 587
-    SMTP_USER   = "your-app@gmail.com"
-    SMTP_PASS   = "your_app_password"
+    SMTP_USER   = "aryasubramani.s@gmail.com"
+    SMTP_PASS   = "nsclvvtcqqlmkbon"
 
     msg = MIMEText(quiz_text)
     msg['Subject'] = subject
